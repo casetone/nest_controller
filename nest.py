@@ -19,7 +19,7 @@ def get_new_access_token():
         r = response.json()
         print(r)
     else:
-        print(u)
+        print(url)
         print('Not Found - status code = '+str(response.status_code))
 
     return response.json()
