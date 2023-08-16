@@ -2,7 +2,9 @@
 import os
 import requests
 from pprint import pprint
+import time
 
+NEST_LOG_FILE = "/tmp/logs/nest.log"
 
 def get_new_access_token():
 
@@ -42,6 +44,13 @@ def get_device_id(project_id,hdr):
     return response.json()["devices"][0]["name"]
 
 
+
+def write_splunk_log(log_text):
+    f = open(NEST_LOG_FILE, "a")
+    f.write(log_text)
+    f.close()
+
+
 def main():
 
     project_id = os.getenv("G_PROJECT_ID")
@@ -58,15 +67,17 @@ def main():
     if device_data.status_code == 200:
         r = device_data.json()
         pprint(r)
+        write_splunk_log(str(round(time.time())) + "," + "nest_status" + "," + str(r) + "\n")
+
     else:
         print(device_data.text)
         print('Not Found - status code = '+str(device_data.status_code))
 
-
+    set_mode = "OFF"
     data = {
     "command" : "sdm.devices.commands.ThermostatMode.SetMode",
     "params" : {
-      "mode" : "OFF"
+      "mode" : set_mode
     }
   }
     url += ":executeCommand"
@@ -76,6 +87,7 @@ def main():
     if response.status_code == 200:
         r = response.json()
         pprint(r)
+        write_splunk_log(str(round(time.time())) + "," + "nest_setmode" + "," + "{'mode': '" + set_mode + "','nest_schedule_time': '" + set_mode + "','nest_schedule_name': '" + set_mode + "'}" + "\n")
     else:
         print(response.text)
         print('Not Found - status code = '+str(response.status_code))
