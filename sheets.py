@@ -54,14 +54,15 @@ def read_sheet(creds,range_name):
         values = result.get('values', [])
 
         if not values:
-            print('No data found.')
+            nest.write_splunk_log("info","No data found.")
             return
         
         return values
 
     except HttpError as err:
-        print(err)
-
+        log_text = "HTTP ERROR : " + str(err)
+        nest.write_splunk_log("info",log_text)
+        exit
 
 
 def main():
@@ -88,7 +89,6 @@ def main():
                 exit()
         elif row[0]=="CURRENT_SCHEDULE":
             current_schedule=row[1]
-            #print(f"Current Schedule is {current_schedule}")
 
 # ************* Get the current schedule sheet details ***************
     values=read_sheet(creds,current_schedule)
@@ -109,23 +109,21 @@ def main():
         if (off > current_date_time - 600) and (off <= current_date_time):
             action_times[off] = "OFF"
 
-    #print(action_times)
-
     max_action_time = 0
     max_action = "NONE"
     for k,v in action_times.items():
-        #print(f"Key : {k}, Value : {v}")
         if k > max_action_time:
             max_action_time = k
             max_action_time_t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(max_action_time))
             max_action = v
 
     if max_action_time > 0:
-        print(f"SWITCH {max_action}, scheduled time was {max_action_time_t} ({max_action_time}) from {current_schedule}")
+        #print(f"SWITCH {max_action}, scheduled time was {max_action_time_t} ({max_action_time}) from {current_schedule}")
+        log_text = "SWITCH " + max_action + ", scheduled time was " + str(max_action_time_t) + "(" + str(max_action_time) + ") from " + current_schedule
+        nest.write_splunk_log("info",log_text)
         nest.set_nest_status(max_action,current_schedule,max_action_time_t)
     else:
-        print("Nothing to do right now")
-
+        nest.write_splunk_log("info","Nothing to do right now")
 
 
 
