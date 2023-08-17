@@ -3,7 +3,7 @@ from __future__ import print_function
 import os.path
 import datetime as dt
 import time
-import calendar
+import nest
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -103,7 +103,7 @@ def main():
     action_times = {}
     for on in on_times:
         if (on > current_date_time - 600) and (on <= current_date_time):
-            action_times[on] = "ON"
+            action_times[on] = "HEAT"
 
     for off in off_times:
         if (off > current_date_time - 600) and (off <= current_date_time):
@@ -117,13 +117,14 @@ def main():
         #print(f"Key : {k}, Value : {v}")
         if k > max_action_time:
             max_action_time = k
-            max_action_time_t = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(k))
+            max_action_time_t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(max_action_time))
             max_action = v
 
     if max_action_time > 0:
         print(f"SWITCH {max_action}, scheduled time was {max_action_time_t} ({max_action_time}) from {current_schedule}")
+        nest.set_nest_status(max_action,current_schedule,max_action_time_t)
     else:
-        print("Nohing to do right now")
+        print("Nothing to do right now")
 
 
 

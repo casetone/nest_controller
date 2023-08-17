@@ -4,7 +4,7 @@ import requests
 from pprint import pprint
 import time
 
-NEST_LOG_FILE = "/tmp/logs/nest.log"
+
 
 def get_new_access_token():
 
@@ -45,13 +45,27 @@ def get_device_id(project_id,hdr):
 
 
 
-def write_splunk_log(log_text):
-    f = open(NEST_LOG_FILE, "a")
+def write_splunk_log(log_type,log_text):
+
+    if log_type == "setmode":
+        nest_log_file = "/tmp/logs/nest_actions.log"
+        log_text=time.strftime('%Y-%m-%d %H:%M:%S') + ", " + log_text
+
+    elif log_type == "status":
+        nest_log_file = "/tmp/logs/nest_status.log"
+        log_text = log_text[:1] + "\"status_time\": \"" + str(time.strftime('%Y-%m-%d %H:%M:%S')) + "\", " + log_text[1:]
+        #log_text = log_text.replace("'","\"")
+
+    log_text += "\n"
+
+    f = open(nest_log_file, "a")
     f.write(log_text)
     f.close()
+    #print(log_text)
 
 
-def main():
+
+def set_nest_status(new_status_action,schedule_name,schedule_time):
 
     project_id = os.getenv("G_PROJECT_ID")
     access_token = get_new_access_token()
@@ -65,19 +79,18 @@ def main():
     device_data = requests.get(url, headers=hdr)
 
     if device_data.status_code == 200:
-        r = device_data.json()
-        pprint(r)
-        write_splunk_log(str(round(time.time())) + "," + "nest_status" + "," + str(r) + "\n")
+        r = device_data.text
+        #pprint(r)
+        write_splunk_log("status", r)
 
     else:
         print(device_data.text)
         print('Not Found - status code = '+str(device_data.status_code))
 
-    set_mode = "OFF"
     data = {
     "command" : "sdm.devices.commands.ThermostatMode.SetMode",
     "params" : {
-      "mode" : set_mode
+      "mode" : new_status_action
     }
   }
     url += ":executeCommand"
@@ -85,13 +98,13 @@ def main():
 
 
     if response.status_code == 200:
-        r = response.json()
-        pprint(r)
-        write_splunk_log(str(round(time.time())) + "," + "nest_setmode" + "," + "{'mode': '" + set_mode + "','nest_schedule_time': '" + set_mode + "','nest_schedule_name': '" + set_mode + "'}" + "\n")
+        r = device_data.text
+        #pprint(r)
+        log_text = "'mode':'" + new_status_action + "','nest_schedule_name':'" + schedule_name + "','nest_schedule_time':'" + schedule_time + "'"
+        write_splunk_log("setmode",log_text)
     else:
         print(response.text)
         print('Not Found - status code = '+str(response.status_code))
 
 
-if __name__ == "__main__":
-    main()
+    return
