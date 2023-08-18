@@ -30,7 +30,7 @@ class Logger:
         f = open(nest_log_file, "a")
         f.write(log_text)
         f.close()
-
+        print(log_text)
         return
 
 

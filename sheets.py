@@ -1,8 +1,11 @@
 from __future__ import print_function
 
 import os.path
+from pprint import pprint
+
 import datetime as dt
 import time
+
 from nest import Nest
 from nest import Logger
 
@@ -24,20 +27,22 @@ def get_creds():
     Prints values from a sample spreadsheet.
     """
     creds = None
+    nest_path = os.getenv("NEST_PATH")
+
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if os.path.exists(nest_path + "/token.json"):
+        creds = Credentials.from_authorized_user_file(nest_path + "/token.json", SCOPES)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(nest_path + "/credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open("token.json", "w") as token:
+        with open(nest_path + "/token.json", "w") as token:
             token.write(creds.to_json())
 
     return creds
@@ -69,12 +74,14 @@ def read_sheet(creds, range_name,logger):
 
 
 def main():
+
     logger = Logger()
     nest = Nest(logger)
 
     creds = get_creds()
     current_date_time = round(time.time())
     current_date = time.strftime("%Y-%m-%d")
+    current_day = int(time.strftime("%w"))
 
     # ************* Process the master sheet details ***************
     values = read_sheet(creds, "MASTER",logger)
@@ -95,64 +102,32 @@ def main():
         elif row[0] == "CURRENT_SCHEDULE":
             current_schedule = row[1]
 
-    # ************* Get the current schedule sheet details ***************
-    values = read_sheet(creds, current_schedule,logger)
 
-    on_times = []
-    off_times = []
+# ************* Process the current schedule sheet details ***************
+    values = read_sheet(creds,current_schedule,logger)
+    last_scheduled_time = 0
+    end_row=[]
+
     for row in values:
-        if row[0] != "TIME_ON":
-            on_times.append(
-                int(
-                    time.mktime(
-                        time.strptime(current_date + " " + row[0], "%Y-%m-%d %H:%M")
-                    )
-                )
-            )
-            off_times.append(
-                int(
-                    time.mktime(
-                        time.strptime(current_date + " " + row[1], "%Y-%m-%d %H:%M")
-                    )
-                )
-            )
+     if row[0] != "SCHEDULED_TIME":
+        row += [''] * (10 - len(row))
+        scheduled_time = int(time.mktime(time.strptime(current_date + ' ' + row[0], '%Y-%m-%d %H:%M')))
+        #print(f"Switch {row[1]} at {row[0]} ({scheduled_time}) {current_date_time} current day={current_day} today={row[current_day+1]}")
 
-    action_times = {}
-    for on in on_times:
-        if (on > current_date_time - 600) and (on <= current_date_time):
-            action_times[on] = "HEAT"
+        if (row[current_day+1] == "Y") and (scheduled_time > current_date_time - 600) and (scheduled_time <= current_date_time) and (scheduled_time > last_scheduled_time):
+            #print(f"Switch {row[1]} at {row[0]} ({scheduled_time}) {current_date_time} current day={current_day} today={row[current_day+1]}")
+            end_row=row
 
-    for off in off_times:
-        if (off > current_date_time - 600) and (off <= current_date_time):
-            action_times[off] = "OFF"
-
-    max_action_time = 0
-    max_action = "NONE"
-    for k, v in action_times.items():
-        if k > max_action_time:
-            max_action_time = k
-            max_action_time_t = time.strftime(
-                "%Y-%m-%d %H:%M:%S", time.localtime(max_action_time)
-            )
-            max_action = v
-
-    if max_action_time > 0:
-        log_text = (
-            "SWITCH "
-            + max_action
-            + ", scheduled time was "
-            + str(max_action_time_t)
-            + "("
-            + str(max_action_time)
-            + ") from "
-            + current_schedule
-        )
+    if end_row:
+        #print(f"{end_row[0]}, {current_date + ' ' + end_row[0]}, {int(time.mktime(time.strptime(current_date + ' ' + end_row[0], '%Y-%m-%d %H:%M')))}, {end_row[1]}, {end_row[2]}")
+        log_text = ("SWITCH " + end_row[1] + ", scheduled time was " + end_row[0] + "(" + str(int(time.mktime(time.strptime(current_date + ' ' + end_row[0], '%Y-%m-%d %H:%M')))) + ") from " + current_schedule)
         logger.write_splunk_log("info", log_text)
         nest.get_nest_status()
-        nest.set_nest_status(max_action, current_schedule, max_action_time_t)
+        nest.set_nest_status(end_row[1], current_schedule, current_date + ' ' + end_row[0])
     else:
         nest.get_nest_status()
         logger.write_splunk_log("info", "Nothing to do right now")
+
 
 
 if __name__ == "__main__":
