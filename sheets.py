@@ -89,15 +89,21 @@ def main():
     for row in values:
         if row[0] == "ENABLED":
             if row[1] != "1":
+                log_text = "NOT ENABLED - doing no work"
+                logger.write_splunk_log("info", log_text)
                 exit()
         elif row[0] == "MANUAL_OVERRIDE_STATE":
             if row[1] == "OFF":
-                # switch_heating_off()
-                print("Switch Heating OFF")
+                log_text = "MANUAL OVERRIDE OFF"
+                logger.write_splunk_log("info", log_text)
+                nest.get_nest_status()
+                nest.set_nest_status("OFF", "OVERRIDE", "NONE")
                 exit()
             elif row[1] == "HEAT":
-                # switch_heating_on()
-                print("Switch Heating ON")
+                log_text = "MANUAL OVERRIDE HEAT"
+                logger.write_splunk_log("info", log_text)
+                nest.get_nest_status()
+                nest.set_nest_status("HEAT", "OVERRIDE", "NONE")
                 exit()
         elif row[0] == "CURRENT_SCHEDULE":
             current_schedule = row[1]
