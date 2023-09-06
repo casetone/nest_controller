@@ -38,6 +38,7 @@ class Nest:
     def __init__(self,logger):
         self.logger = logger
         self.project_id = os.getenv("G_PROJECT_ID")
+        self.project_id = "48a714f6-6bc5-4038-b6f5-09e60f9f03df"
         self.get_new_access_token()
 
         self.headers = {"Content-Type":"application/json","Authorization":f"{self.access_token['token_type']} {self.access_token['access_token']}"}
@@ -48,8 +49,11 @@ class Nest:
     def get_new_access_token(self):
 
         oauth2_client_id = os.getenv("G_CLIENT_ID")
+        oauth2_client_id = "1078119000012-drl0nonh594er92p3rg2uoeptpssjkem.apps.googleusercontent.com"
         oauth2_client_secret = os.getenv("G_CLIENT_SECRET")
+        oauth2_client_secret = "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"
         refresh_token = os.getenv("G_REFRESH_TOKEN")
+        refresh_token = "1//03UMyWtXECu8XCgYIARAAGAMSNwF-L9IrNCAaozUmCTZU7h4wvQXnSq0EcnBBAsYCu9DneBqYm80MqyqMfB830pk6pSAjxDKMB-w"
 
         url = f"https://www.googleapis.com/oauth2/v4/token?client_id={oauth2_client_id}"
         url += f"&client_secret={oauth2_client_secret}&refresh_token={refresh_token}&grant_type=refresh_token"
@@ -63,6 +67,7 @@ class Nest:
         else:
             log_text = 'ERROR : Access Token Not Found - status code = '+str(response.status_code) + ", url = " + url
             exit
+        print("~~~~"+log_text+"~~~~")
 
         return response.json()
 
@@ -124,3 +129,27 @@ class Nest:
             exit
 
         return response.status_code
+    
+
+
+    def set_nest_temperature(self,new_temperature,schedule_name,schedule_time):
+
+        data = {
+        "command" : "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
+        "params" : {
+        "heatCelsius" : new_temperature
+        }
+    }
+        url = f"https://smartdevicemanagement.googleapis.com/v1/{self.device_id}:executeCommand"
+        response = requests.post(url, headers=self.headers, json=data)
+
+        if response.status_code == 200:
+            log_text = "'temperature':'" + new_temperature + "','nest_schedule_name':'" + schedule_name + "','nest_schedule_time':'" + schedule_time + "'"
+            self.logger.write_splunk_log("setmode",log_text)
+        else:
+            log_text = 'ERROR : Not Found - status code = '+str(response.status_code) + ", response = " + response.text
+            self.logger.write_splunk_log("info",log_text)
+            exit
+
+        return response.status_code
+

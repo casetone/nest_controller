@@ -126,10 +126,11 @@ def main():
 
     if end_row:
         #print(f"{end_row[0]}, {current_date + ' ' + end_row[0]}, {int(time.mktime(time.strptime(current_date + ' ' + end_row[0], '%Y-%m-%d %H:%M')))}, {end_row[1]}, {end_row[2]}")
-        log_text = ("SWITCH " + end_row[1] + ", scheduled time was " + end_row[0] + "(" + str(int(time.mktime(time.strptime(current_date + ' ' + end_row[0], '%Y-%m-%d %H:%M')))) + ") from " + current_schedule)
+        log_text = ("SWITCH " + end_row[1] + ", temperature=" + end_row[2] + ", scheduled time was " + end_row[0] + "(" + str(int(time.mktime(time.strptime(current_date + ' ' + end_row[0], '%Y-%m-%d %H:%M')))) + ") from " + current_schedule)
         logger.write_splunk_log("info", log_text)
         nest.get_nest_status()
         nest.set_nest_status(end_row[1], current_schedule, current_date + ' ' + end_row[0])
+        nest.set_nest_temperature(end_row[2], current_schedule, current_date + ' ' + end_row[0])
     else:
         nest.get_nest_status()
         logger.write_splunk_log("info", "Nothing to do right now")
